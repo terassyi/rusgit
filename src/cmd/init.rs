@@ -2,10 +2,10 @@ use std::io;
 use std::fs;
 use std::fs::File;
 
-const RUSGIT_BASE_DIR: &str = ".rusgit";
-const RUSGIT_OBJECTS_DIR: &str = ".rusgit/objects";
-const RUSGIT_REFS_DIR: &str = ".rusgit/refs";
-const RUSGIT_HEAD_FILE: &str = ".rusgit/HEAD";
+use crate::cmd::RUSGIT_BASE_DIR;
+use crate::cmd::RUSGIT_OBJECTS_DIR;
+use crate::cmd::RUSGIT_REFS_DIR;
+use crate::cmd::RUSGIT_HEAD_FILE;
 
 pub fn init_rusgit() -> io::Result<()> {
     // mkdir .rugit dir
