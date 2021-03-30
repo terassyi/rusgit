@@ -4,6 +4,7 @@ use clap::{App, Arg, SubCommand};
 
 use crate::cmd::init;
 use crate::cmd::cat_file;
+use crate::cmd::hash_object;
 
 pub mod cmd;
 mod object;
@@ -35,8 +36,15 @@ fn main() {
                 .help("pretty-print object's content")
                 .short("p")
                 // .takes_value(true)
-                )
-        );
+                ))
+        .subcommand(SubCommand::with_name("hash-object")
+            .about("hash object")
+            .arg(Arg::with_name("file")
+                .help("file path hashing")
+                .required(true))
+            .arg(Arg::with_name("write")
+                .help("write the object into the object database")
+                .short("w")));
 
     // parse subcommands and arguments
     let matches = app.get_matches();
@@ -62,5 +70,13 @@ fn main() {
             }
         },
         None => {}
-    }
+    };
+    match matches.subcommand_matches("hash-object") {
+        Some(matches) => {
+            let file = matches.value_of("file").unwrap();
+            let w_opt = if let Some(_) = matches.args.get("write") { true } else { false };
+            hash_object::hash_object(file, w_opt).unwrap();
+        },
+        None => {}
+    };
 }

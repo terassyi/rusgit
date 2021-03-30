@@ -1,4 +1,5 @@
 
+use sha1::{Sha1, Digest};
 use crate::object::{Object, ObjectType};
 
 #[derive(Debug, Clone)]
@@ -26,6 +27,16 @@ impl Blob {
             },
             Err(_) => None
         }
+    }
+
+    pub fn calc_hash(&self) -> Vec<u8> {
+        Vec::from(Sha1::digest(&self.as_bytes()).as_slice())
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let hdr = format!("{} {}\0", ObjectType::Blob.to_string(), self.size);
+        let content = format!("{}{}", hdr, self.content);
+        Vec::from(content.as_bytes())
     }
 
     pub fn typ(&self) -> ObjectType {

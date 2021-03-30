@@ -1,4 +1,5 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
+use sha1::{Sha1, Digest};
 use std::str;
 use std::fmt;
 
@@ -117,6 +118,17 @@ impl Commit {
             commiter,
             message,
         })
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let content = format!("{}", self);
+        let hdr = format!("commit {}\0", content.len());
+        let all = format!("{}{}", hdr, content);
+        Vec::from(all.as_bytes())
+    }
+
+    pub fn calc_hash(&self) -> Vec<u8> {
+        Vec::from(Sha1::digest(&self.as_bytes()).as_slice())
     }
 
     pub fn typ(&self) -> ObjectType {

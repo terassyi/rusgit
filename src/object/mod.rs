@@ -4,10 +4,15 @@ pub mod commit;
 pub mod tree;
 
 use std::str;
+use std::io;
+use std::fs;
+use std::io::Write;
+use libflate::zlib::Encoder;
 
 use crate::object::blob::Blob;
 use crate::object::commit::Commit;
 use crate::object::tree::{Tree, File};
+use crate::cmd::RUSGIT_OBJECTS_DIR;
 
 const BLOB: &str = "blob";
 const COMMIT: &str = "commit";
@@ -54,6 +59,38 @@ impl Object {
         let size = size_iter.next()?
                     .parse::<usize>().ok()?;
         Some(size)
+    }
+
+    pub fn write(&self) -> io::Result<()> {
+        let hash = hex::encode(self.calc_hash());
+        let (sub_dir, name) = hash.split_at(2);
+        let dir = format!("{}/{}", RUSGIT_OBJECTS_DIR, sub_dir);
+        if !fs::metadata(&dir).is_ok() {
+            fs::create_dir(&dir)?;
+        }
+        let file_path = format!("{}/{}", dir, name);
+        let mut file = fs::File::create(file_path)?;
+        let mut encoder = Encoder::new(Vec::new())?;
+        encoder.write_all(&self.as_bytes())?;
+        let data = encoder.finish().into_result()?;
+        file.write(&data)?;
+        Ok(())
+    }
+
+    pub fn calc_hash(&self) -> Vec<u8> {
+        match self {
+            Object::Blob(blob) => blob.calc_hash(),
+            Object::Commit(commit) => commit.calc_hash(),
+            Object::Tree(tree) => tree.calc_hash(),
+        } 
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        match self {
+            Object::Blob(blob) => blob.as_bytes(),
+            Object::Commit(commit) => commit.as_bytes(),
+            Object::Tree(tree) => tree.as_bytes(),
+        }
     }
 }
 

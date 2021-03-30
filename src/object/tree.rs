@@ -1,4 +1,5 @@
 
+use sha1::{Sha1, Digest};
 use std::str;
 use std::fmt;
 
@@ -46,6 +47,11 @@ impl File {
             hash: hash.to_vec(),
         })
     }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let header = format!("{} {}\0", self.mode, self.name);
+        [header.as_bytes(), &self.hash].concat()
+    }
 }
 
 impl fmt::Display for File {
@@ -80,6 +86,17 @@ impl Tree {
             Some(acc)
         })?;
         Some(Tree { files })
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let content: Vec<u8> = self.files.iter().flat_map(|x| x.encode()).collect();
+        let header = format!("{} {}\0", ObjectType::Tree.to_string(), content.len());
+
+        [header.as_bytes(), content.as_slice()].concat()
+    }
+
+    pub fn calc_hash(&self) -> Vec<u8> {
+        Vec::from(Sha1::digest(&self.as_bytes()).as_slice())
     }
 
     pub fn typ(&self) -> ObjectType {
