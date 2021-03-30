@@ -45,6 +45,16 @@ impl Object {
             Object::Tree(tree) => tree.typ(),
         }
     }
+
+    pub fn size(data: &[u8]) -> Option<usize> {
+        let mut iter = data.splitn(2, |&b| b == b'\0');
+        let mut size_iter = str::from_utf8(iter.next()?).ok()?
+                    .split_whitespace();
+        size_iter.next()?;
+        let size = size_iter.next()?
+                    .parse::<usize>().ok()?;
+        Some(size)
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

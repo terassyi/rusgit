@@ -64,7 +64,16 @@ fn cat_file_t(path: &str) -> io::Result<()> {
 }
 
 fn cat_file_s(path: &str) -> io::Result<()> {
+    let mut file = File::open(path)?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
 
+    // decode
+    let mut decoder = Decoder::new(&buf[..])?;
+    let mut data = Vec::new();
+    decoder.read_to_end(&mut data)?;
+    let size = Object::size(&data).unwrap();
+    println!("{}", size);
     Ok(())
 }
 
@@ -75,7 +84,6 @@ pub fn hash_key_to_path(sha1: &str) -> String {
 }
 
 pub fn file_to_object(path: &str) -> io::Result<Object> {
-
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
