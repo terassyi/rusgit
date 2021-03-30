@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use std::str;
+use std::fmt;
 
 use crate::object::{Object, ObjectType};
 
@@ -52,6 +53,19 @@ impl User {
     }
 }
 
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} <{}> {} {:+05}",
+            self.name,
+            self.email,
+            self.timestamp.timestamp(),
+            self.timestamp.offset().local_minus_utc() / 36
+        )
+    }
+}
+
 impl Commit {
     pub fn new(tree: &str, parent: Option<&str>, author: User, commiter: User, message: &str) -> Self {
         match parent {
@@ -84,7 +98,7 @@ impl Commit {
             .ok()?
             .split_whitespace()
             .last()?;
-        let parent = if c == 6 {
+        let parent = if c == 5 {
             // parent exists
             Some(String::from(str::from_utf8(lines.next()?)
             .ok()?
@@ -95,7 +109,6 @@ impl Commit {
         };
         let author = User::from(str::from_utf8(lines.next()?).ok()?)?;
         let commiter = User::from(str::from_utf8(lines.next()?).ok()?)?;
-        lines.next()?;
         let message = String::from_utf8(lines.next()?.to_vec()).ok()?;
         Some(Commit {
             tree: String::from(tree),
@@ -108,6 +121,23 @@ impl Commit {
 
     pub fn typ(&self) -> ObjectType {
         ObjectType::Commit
+    }
+}
+
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let tree = format!("tree {}", self.tree);
+        let parent = if let Some(parent) = &self.parent {
+            format!("parent {}\n", parent)
+        } else { String::from("") };
+        write!(f,
+            "{}\n{}{}\n{}\n\n{}\n",
+            tree,
+            parent,
+            self.author,
+            self.commiter,
+            self.message
+        )
     }
 }
 

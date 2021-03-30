@@ -1,9 +1,10 @@
 use std::io;
+use std::str;
 use std::fs::File;
 use std::io::Read;
 use libflate::zlib::{Encoder, Decoder};
 
-use crate::object::Object;
+use crate::object::{Object, ObjectType};
 use crate::object::blob::Blob;
 use crate::cmd::RUSGIT_OBJECTS_DIR;
 
@@ -47,6 +48,12 @@ pub fn cat_file(sha1: &str, opt: CatFileType) -> io::Result<()> {
 }
 
 fn cat_file_p(path: &str) -> io::Result<()> {
+    let obj = file_to_object(path)?;
+    match obj {
+        Object::Blob(blob) => print!("{}", blob.content),
+        Object::Commit(commit) => print!("{}", commit),
+        Object::Tree(tree) => print!("{}", tree),
+    };
     Ok(())
 }
 
@@ -61,17 +68,17 @@ fn cat_file_s(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn hash_key_to_path(sha1: &str) -> String {
+pub fn hash_key_to_path(sha1: &str) -> String {
     let (dir, file) = sha1.split_at(2);
     // format!("{}/{}/{}", RUSGIT_OBJECTS_DIR, dir, file)
     format!(".git/objects/{}/{}", dir, file)
 }
 
-fn file_to_object(path: &str) -> io::Result<Object> {
+pub fn file_to_object(path: &str) -> io::Result<Object> {
 
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
-    file.read_to_end(&mut buf);
+    file.read_to_end(&mut buf)?;
 
     // decode
     let mut decoder = Decoder::new(&buf[..])?;

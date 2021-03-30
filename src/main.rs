@@ -50,7 +50,6 @@ fn main() {
     match matches.subcommand_matches("cat-file") {
         Some(matches) => {
             let sha1 = matches.value_of("hash").unwrap();
-            println!("hash key: {}", sha1);
             if let Some(_) = matches.args.get("type") {
                 println!("show type");
                 cat_file::cat_file(sha1, cat_file::CatFileType::Type).unwrap();

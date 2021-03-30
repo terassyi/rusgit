@@ -3,6 +3,8 @@ pub mod blob;
 pub mod commit;
 pub mod tree;
 
+use std::str;
+
 use crate::object::blob::Blob;
 use crate::object::commit::Commit;
 use crate::object::tree::{Tree, File};
@@ -21,18 +23,17 @@ pub enum Object {
 impl Object {
     pub fn new(data: &[u8]) -> Self {
         let mut iter = data.splitn(2, |&b| b == b'\0');
-        let obj_type = iter
+        let obj_type_str = str::from_utf8(iter
+            .next().unwrap()).unwrap();
+        let obj_type = obj_type_str.split_whitespace()
             .next()
-            .and_then(|o| String::from_utf8(o.to_vec()).ok())
             .and_then(|o| ObjectType::from(&o)).unwrap();
         iter
             .next()
             .and_then(|d| match obj_type {
-                ObjectType::Blob => Blob::from_bytes(d).map(Object::Blob),
-                // ObjectType::Commit => Commit::from_bytes(d).map(Object::Commit),
-                // ObjectType::Tree => Tree::from_bytes(d).map(Object::Tree),
-                ObjectType::Commit => Blob::from_bytes(d).map(Object::Blob),
-                ObjectType::Tree => Blob::from_bytes(d).map(Object::Blob),
+                ObjectType::Blob => Blob::from(d).map(Object::Blob),
+                ObjectType::Commit => Commit::from(d).map(Object::Commit),
+                ObjectType::Tree => Tree::from(d).map(Object::Tree),
             }
         ).unwrap()
     }
@@ -46,7 +47,7 @@ impl Object {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ObjectType {
     Blob,
     Commit,

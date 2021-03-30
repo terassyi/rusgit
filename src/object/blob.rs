@@ -15,7 +15,7 @@ impl Blob {
         }
     }
 
-    pub fn from_bytes(content: &[u8]) -> Option<Self> {
+    pub fn from(content: &[u8]) -> Option<Self> {
         let data = String::from_utf8(content.to_vec());
         match data {
             Ok(d) => {
