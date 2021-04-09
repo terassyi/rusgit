@@ -5,9 +5,12 @@ use clap::{App, Arg, SubCommand};
 use crate::cmd::init;
 use crate::cmd::cat_file;
 use crate::cmd::hash_object;
+use crate::cmd::update_index;
+use crate::cmd::ls_files;
 
 pub mod cmd;
 mod object;
+mod index;
 
 fn main() {
     // rusgit app definition
@@ -44,7 +47,20 @@ fn main() {
                 .required(true))
             .arg(Arg::with_name("write")
                 .help("write the object into the object database")
-                .short("w")));
+                .short("w")))
+        .subcommand(SubCommand::with_name("update-index")
+            .about("update index")
+            .arg(Arg::with_name("add")
+                .help("do not ignore new filesr")
+                .long("add"))
+        )
+        .subcommand(SubCommand::with_name("ls-files")
+            .about("list up files")
+            .arg(Arg::with_name("stage")
+            .help("show staged contents' object name in the output")
+            .short("s")
+            .long("stage"))
+        );
 
     // parse subcommands and arguments
     let matches = app.get_matches();
@@ -79,4 +95,17 @@ fn main() {
         },
         None => {}
     };
+    match matches.subcommand_matches("update-index") {
+        Some(_) => {
+            update_index::update_index().unwrap();
+        },
+        None => {}
+    };
+    match matches.subcommand_matches("ls-files") {
+        Some(matches) => {
+            let staged = if let Some(_) = matches.args.get("stage") { true } else { false };
+            ls_files::ls_files(staged).unwrap();
+        },
+        None => {}
+    }
 }
