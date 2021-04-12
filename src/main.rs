@@ -7,6 +7,7 @@ use crate::cmd::cat_file;
 use crate::cmd::hash_object;
 use crate::cmd::update_index;
 use crate::cmd::ls_files;
+use crate::cmd::add;
 
 pub mod cmd;
 mod object;
@@ -53,8 +54,9 @@ fn main() {
             .arg(Arg::with_name("add")
                 .help("do not ignore new files")
                 .long("add")
-                // .takes_value(true)
-                .empty_values(true)
+                .takes_value(true)
+                // .empty_values(true)
+                .default_value("")
                 .required(true))
             .arg(Arg::with_name("cacheinfo")
                 .help("add the specified entry to the index")
@@ -68,6 +70,13 @@ fn main() {
             .help("show staged contents' object name in the output")
             .short("s")
             .long("stage"))
+        )
+        .subcommand(SubCommand::with_name("add")
+            .about("stage files")
+            .arg(Arg::with_name("file")
+            .help("stage files")
+            .multiple(true)
+            .required(true))
         );
 
     // parse subcommands and arguments
@@ -83,7 +92,6 @@ fn main() {
         Some(matches) => {
             let sha1 = matches.value_of("hash").unwrap();
             if let Some(_) = matches.args.get("type") {
-                println!("show type");
                 cat_file::cat_file(sha1, cat_file::CatFileType::Type).unwrap();
             }
             if let Some(_) = matches.args.get("size") {
@@ -116,7 +124,13 @@ fn main() {
                 None => {},
             }
             match matches.value_of("add") {
-                Some(path) => update_index::update_index(path, None, None).unwrap(),
+                Some(path) => {
+                    if path == "" {
+                        println!("add value is not set");
+                        return;
+                    }
+                    update_index::update_index(path, None, None).unwrap();
+                },
                 None => {}
             };
         },
@@ -128,5 +142,12 @@ fn main() {
             ls_files::ls_files(staged).unwrap();
         },
         None => {}
-    }
+    };
+    match matches.subcommand_matches("add") {
+        Some(matches) => {
+            let files: Vec<&str> = matches.values_of("file").unwrap().collect();
+            add::add(files).unwrap();
+        },
+        None => {}
+    };
 }

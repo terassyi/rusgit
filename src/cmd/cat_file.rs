@@ -6,7 +6,7 @@ use libflate::zlib::{Encoder, Decoder};
 
 use crate::object::{Object, ObjectType};
 use crate::object::blob::Blob;
-use crate::cmd::RUSGIT_OBJECTS_DIR;
+use crate::cmd::GIT_OBJECTS_DIR;
 
 pub enum CatFileType {
     Type,
@@ -80,7 +80,7 @@ fn cat_file_s(path: &str) -> io::Result<()> {
 pub fn hash_key_to_path(sha1: &str) -> String {
     let (dir, file) = sha1.split_at(2);
     // format!("{}/{}/{}", RUSGIT_OBJECTS_DIR, dir, file)
-    format!(".git/objects/{}/{}", dir, file)
+    format!("{}/{}/{}", GIT_OBJECTS_DIR, dir, file)
 }
 
 pub fn file_to_object(path: &str) -> io::Result<Object> {

@@ -12,7 +12,7 @@ use libflate::zlib::Encoder;
 use crate::object::blob::Blob;
 use crate::object::commit::Commit;
 use crate::object::tree::{Tree, File};
-use crate::cmd::RUSGIT_OBJECTS_DIR;
+use crate::cmd::GIT_OBJECTS_DIR;
 
 const BLOB: &str = "blob";
 const COMMIT: &str = "commit";
@@ -64,7 +64,7 @@ impl Object {
     pub fn write(&self) -> io::Result<()> {
         let hash = hex::encode(self.calc_hash());
         let (sub_dir, name) = hash.split_at(2);
-        let dir = format!("{}/{}", RUSGIT_OBJECTS_DIR, sub_dir);
+        let dir = format!("{}/{}", GIT_OBJECTS_DIR, sub_dir);
         if !fs::metadata(&dir).is_ok() {
             fs::create_dir(&dir)?;
         }

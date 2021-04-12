@@ -200,8 +200,9 @@ pub fn read_index(index_path: &str) -> io::Result<Index> {
 }
 
 pub fn write_index(index_path: &str, index: &Index) -> io::Result<()> {
-    let mut file = File::open(index_path)?;
-    file.write_all(&mut index.as_bytes())?;
+    let mut file = File::create(index_path)?;
+    file.write(&mut index.as_bytes())?;
+
     Ok(())
 }
 
