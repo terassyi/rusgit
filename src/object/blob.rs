@@ -1,4 +1,6 @@
-
+use std::io;
+use std::fs::File;
+use std::io::Read;
 use sha1::{Sha1, Digest};
 use crate::object::{Object, ObjectType};
 
@@ -27,6 +29,14 @@ impl Blob {
             },
             Err(_) => None
         }
+    }
+
+    pub fn from_name(name: &str) -> io::Result<Blob> {
+        let mut file = File::open(name)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let blob = Blob::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+        Ok(blob)
     }
 
     pub fn calc_hash(&self) -> Vec<u8> {

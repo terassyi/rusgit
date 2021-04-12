@@ -1,4 +1,13 @@
 use std::fmt;
+use std::io;
+use std::io::Read;
+use std::io::Write;
+use std::fs::File;
+use std::fs;
+#[cfg(target_os = "macos")]
+use std::os::macos::fs::MetadataExt;
+#[cfg(target_os = "linux")]
+use std::os::linux::fs::MetadataExt;
 use chrono::{DateTime, TimeZone, Utc};
 use sha1::{Sha1, Digest};
 
@@ -67,6 +76,48 @@ impl Entry {
         })
     }
 
+    #[cfg(target_os = "linux")]
+    fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
+        let metadata = fs::metadata(name)?;
+        let c_time = metadata.st_ctime() as u32;
+        let c_time_nano = metadata.st_ctime_nsec() as u32;
+        let m_time = metadata.st_mtime() as u32;
+        let m_time_nano = metadata.st_mtime_nsec() as u32;
+        Ok(Entry {
+            c_time: Utc.timestamp(c_time.into(), c_time_nano),
+            m_time: Utc.timestamp(m_time.into(), m_time_nano),
+            dev: metadata.st_dev() as u32,
+            inode: metadata.st_ino() as u32,
+            mode: metadata.st_mode(),
+            uid: metadata.st_uid(),
+            gid: metadata.st_gid(),
+            size: metadata.st_size() as u32,
+            hash,
+            name: String::from(name),
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
+        let metadata = fs::metadata(name)?;
+        let c_time = metadata.st_ctime() as u32;
+        let c_time_nano = metadata.st_ctime_nsec() as u32;
+        let m_time = metadata.st_mtime() as u32;
+        let m_time_nano = metadata.st_mtime_nsec() as u32;
+        Ok(Entry {
+            c_time: Utc.timestamp(c_time.into(), c_time_nano),
+            m_time: Utc.timestamp(m_time.into(), m_time_nano),
+            dev: metadata.st_dev() as u32,
+            inode: metadata.st_ino() as u32,
+            mode: metadata.st_mode(),
+            uid: metadata.st_uid(),
+            gid: metadata.st_gid(),
+            size: metadata.st_size() as u32,
+            hash,
+            name: String::from(name),
+        })
+    }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let c_time = self.c_time.timestamp() as u32;
         let c_time_nano = self.c_time.timestamp_subsec_nanos();
@@ -93,7 +144,6 @@ impl Entry {
 impl fmt::Display for Entry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {} 0\t{}", num_to_mode(self.mode), hex::encode(&self.hash), self.name)
-        // write!(f, "{} {} 0       {}", num_to_mode(self.mode), hex::encode(&self.hash), self.name)
     }
 
 }
@@ -141,6 +191,42 @@ impl fmt::Display for Index {
     }
 }
 
+pub fn read_index(index_path: &str) -> io::Result<Index> {
+    let mut file = File::open(index_path)?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let index = Index::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+    Ok(index)
+}
+
+pub fn write_index(index_path: &str, index: &Index) -> io::Result<()> {
+    let mut file = File::open(index_path)?;
+    file.write_all(&mut index.as_bytes())?;
+    Ok(())
+}
+
+pub fn update_index(index: Index, hash: Vec<u8>, name: &str) -> io::Result<Index> {
+    let entry = Entry::from_name(hash, name)?;
+    let mut entries: Vec<Entry> = index.entries.into_iter()
+                    .filter(|e| e.name != entry.name && e.hash != entry.hash)
+                    .collect();
+    entries.push(entry);
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(Index::new(entries))
+}
+
+pub fn update_index_cacheinfo(index: Index, mode: &str, hash: Vec<u8>, name: &str) -> io::Result<Index> {
+    let mut entry = Entry::from_name(hash, name)?;
+    entry.mode = mode_to_num(mode)?;
+    let mut entries: Vec<Entry> = index.entries.into_iter()
+                    .filter(|e| e.name != entry.name && e.hash != entry.hash)
+                    .collect();
+    entries.push(entry);
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(Index::new(entries))
+
+}
+
 fn hex_to_num(data: &[u8]) -> u32 {
     data.iter().rev().fold((0u32, 1u32), |(sum, offset), &d| {
         (sum + (d as u32 * offset), offset << 8)
@@ -162,6 +248,11 @@ fn num_to_mode(mode: u32) -> String {
     format!("{:03b}{}{}{}", file_type, user, group, other)
 }
 
+fn mode_to_num(mode: &str) -> io::Result<u32> {
+    let m = u32::from_str_radix(mode, 8).or(Err(io::Error::from(io::ErrorKind::InvalidData)))?;
+    Ok(m)
+}
+
 #[cfg(test)]
 mod tests {
     use super::Entry;
@@ -173,6 +264,10 @@ mod tests {
     #[test]
     fn test_num_to_mode() {
         assert_eq!(super::num_to_mode(33188), String::from("100644"));
+    }
+    #[test]
+    fn test_mode_to_num() {
+        assert_eq!(super::mode_to_num("100644").unwrap(), 33188);
     }
     #[test]
     fn test_entry_from() {
@@ -282,5 +377,38 @@ mod tests {
         assert_eq!(index.entries.len(), entry_size);
         assert_eq!(index.entries[0].name, ".gitignore");
         assert_eq!(index.entries[11].name, "src/object/tree.rs");
+    }
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_macos_entry_from_name() {
+        let hash: Vec<u8> = vec![0x00, 0x00];
+        let name = "Cargo.toml";
+        let entry = Entry::from_name(hash, name).unwrap();
+        assert_eq!(entry.name, "Cargo.toml");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_linux_entry_from_name() {
+        let hash: Vec<u8> = vec![0x00, 0x00];
+        let name = "Cargo.toml";
+        let entry = Entry::from_name(hash, name).unwrap();
+        assert_eq!(entry.name, "Cargo.toml");
+    }
+    #[test]
+    fn test_update_index() {
+        let index = Index::new(vec![]);
+        let new_index = super::update_index(index, Vec::from("hash".as_bytes()), "Cargo.toml").unwrap();
+        assert_eq!(new_index.entries.len(), 1);
+        assert_eq!(&super::num_to_mode(new_index.entries[0].mode), "100644");
+        assert_eq!(&new_index.entries[0].name, "Cargo.toml");
+    }
+    #[test]
+    fn test_update_index_cacheinfo() {
+        let index = Index::new(vec![]);
+        let new_index = super::update_index_cacheinfo(index, "100755", Vec::from("hash".as_bytes()), "Cargo.toml").unwrap();
+        assert_eq!(new_index.entries.len(), 1);
+        assert_eq!(&super::num_to_mode(new_index.entries[0].mode), "100755");
+        assert_eq!(&new_index.entries[0].name, "Cargo.toml");
     }
 }

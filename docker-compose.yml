@@ -1,0 +1,12 @@
+version: '3'
+volumes:
+    ignore:
+services:
+    dev:
+        build: .
+        container_name: gitdev
+        tty: true
+        volumes:
+            - .:/rusgit
+            - ignore:/rusgit/.git
+        working_dir: /rusgit

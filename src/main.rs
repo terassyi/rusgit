@@ -51,8 +51,16 @@ fn main() {
         .subcommand(SubCommand::with_name("update-index")
             .about("update index")
             .arg(Arg::with_name("add")
-                .help("do not ignore new filesr")
-                .long("add"))
+                .help("do not ignore new files")
+                .long("add")
+                // .takes_value(true)
+                .empty_values(true)
+                .required(true))
+            .arg(Arg::with_name("cacheinfo")
+                .help("add the specified entry to the index")
+                .long("cacheinfo")
+                .takes_value(true)
+                .multiple(true))
         )
         .subcommand(SubCommand::with_name("ls-files")
             .about("list up files")
@@ -96,8 +104,21 @@ fn main() {
         None => {}
     };
     match matches.subcommand_matches("update-index") {
-        Some(_) => {
-            update_index::update_index().unwrap();
+        Some(matches) => {
+            match matches.values_of("cacheinfo") {
+                Some(val) => {
+                    let values: Vec<&str> = val.collect();
+                    if values.len() != 3 {
+                        println!("you must specified <mode> <object> <path>");
+                    }
+                    update_index::update_index(values[2], Some(values[0]), Some(values[1])).unwrap();
+                },
+                None => {},
+            }
+            match matches.value_of("add") {
+                Some(path) => update_index::update_index(path, None, None).unwrap(),
+                None => {}
+            };
         },
         None => {}
     };
