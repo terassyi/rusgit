@@ -8,6 +8,7 @@ use crate::cmd::hash_object;
 use crate::cmd::update_index;
 use crate::cmd::ls_files;
 use crate::cmd::add;
+use crate::cmd::write_tree;
 
 pub mod cmd;
 mod object;
@@ -77,6 +78,9 @@ fn main() {
             .help("stage files")
             .multiple(true)
             .required(true))
+        )
+        .subcommand(SubCommand::with_name("write-tree")
+            .about("write index as tree object")
         );
 
     // parse subcommands and arguments
@@ -148,6 +152,10 @@ fn main() {
             let files: Vec<&str> = matches.values_of("file").unwrap().collect();
             add::add(files).unwrap();
         },
+        None => {}
+    };
+    match matches.subcommand_matches("write-tree") {
+        Some(_) => write_tree::write_tree().unwrap(),
         None => {}
     };
 }
