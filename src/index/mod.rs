@@ -49,13 +49,14 @@ impl Entry {
     }
 
     pub fn from(data: &[u8]) -> Option<Entry> {
+        use std::str;
         let c_time = hex_to_num(&data[0..4]);
         let c_time_nano = hex_to_num(&data[4..8]);
         let m_time = hex_to_num(&data[8..12]);
         let m_time_nano = hex_to_num(&data[12..16]);
         let dev = hex_to_num(&data[16..20]);
         let inode = hex_to_num(&data[20..24]);
-        let mode = hex_to_num(&data[24..28]);
+        let mode = num_to_mode_num(hex_to_num(&data[24..28])).ok()?;
         let uid = hex_to_num(&data[28..32]);
         let gid = hex_to_num(&data[32..36]);
         let size = hex_to_num(&data[36..40]);
@@ -192,7 +193,16 @@ impl fmt::Display for Index {
 }
 
 pub fn read_index(index_path: &str) -> io::Result<Index> {
-    let mut file = File::open(index_path)?;
+    let mut file = match File::open(index_path) {
+        Ok(file) => file,
+        Err(err) => {
+            if err.kind() != io::ErrorKind::NotFound {
+                return Err(err);
+            }
+            File::create(index_path)?;
+            return Ok(Index::new(Vec::new()));
+        }
+    };
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
     let index = Index::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
@@ -234,7 +244,7 @@ fn hex_to_num(data: &[u8]) -> u32 {
     }).0
 }
 
-fn num_to_mode(mode: u32) -> String {
+pub fn num_to_mode(mode: u32) -> String {
     let mode = mode as u16;
     let file_type = mode >> 13;
     let (user, group, other) = {
@@ -254,6 +264,11 @@ fn mode_to_num(mode: &str) -> io::Result<u32> {
     Ok(m)
 }
 
+fn num_to_mode_num(mode: u32) -> io::Result<u32> {
+    let mode = num_to_mode(mode);
+    mode.parse::<u32>().or(Err(io::Error::from(io::ErrorKind::InvalidData)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::Entry;
@@ -269,6 +284,10 @@ mod tests {
     #[test]
     fn test_mode_to_num() {
         assert_eq!(super::mode_to_num("100644").unwrap(), 33188);
+    }
+    #[test]
+    fn test_num_to_mode_num() {
+        assert_eq!(super::num_to_mode_num(33188).unwrap(), 100644);
     }
     #[test]
     fn test_entry_from() {

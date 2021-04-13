@@ -6,7 +6,6 @@ use std::io;
 use std::path::Path;
 
 use crate::object::{Object, ObjectType};
-use crate::cmd::cat_file::{hash_key_to_path, file_to_object};
 use crate::index;
 use crate::cmd::GIT_INDEX;
 
@@ -110,7 +109,7 @@ impl Tree {
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
-        let content: Vec<u8> = self.files.iter().flat_map(|x| x.encode()).collect();
+        let content: Vec<u8> = self.files.iter().flat_map(|file| file.encode()).collect();
         let header = format!("{} {}\0", ObjectType::Tree.to_string(), content.len());
 
         [header.as_bytes(), content.as_slice()].concat()
@@ -192,9 +191,16 @@ mod tests {
         assert_eq!(hex::encode(file.hash), "6b8710a711f3b689885aa5c26c6c06bde348e82b");
     }
     #[test]
+    fn test_file_encode() {
+        let file = File::from(&FILE[0..20], &FILE[21..]).unwrap();
+        let encoded = file.encode();
+        assert_eq!(encoded, FILE);
+
+    }
+    #[test]
     fn test_file_fmt() {
         let file_str = "100644 blob 6b8710a711f3b689885aa5c26c6c06bde348e82b    .dockerignore";
-        let file = File::from(&FILE[0..21], &FILE[21..]).unwrap();
+        let file = File::from(&FILE[0..20], &FILE[21..]).unwrap();
         let res = format!("{}", file);
         assert_eq!(res, file_str);
     }
@@ -206,14 +212,28 @@ mod tests {
         assert_eq!(tree.files[6].name, String::from("src"));
         assert_eq!(tree.files[1].mode, 100644);
     }
-//     #[test]
-//     fn test_tree_fmt() {
-//         let tree_str = "040000 tree 586adda20ea6368204ec255813d7540e0f50eae3    cmd
-// 100644 blob 621c8b5649992e727e38edf8a70ea56b38ddae1b    main.rs
-// 040000 tree 3b74be79d3c861a3e114c608debbd7bdc4518ba6    object";
-//         let tree = Tree::from(tree_str.as_bytes()).unwrap();
-//         let res = format!("{}", tree);
-//         assert_eq!(res, tree_str);
+    #[test]
+    fn test_tree_as_bytes() {
+        let tree = Tree::from(&TREE).unwrap();
+        assert_eq!(tree.as_bytes()[9..], TREE);
+    }
+    #[test]
+    fn test_tree_fmt() {
+        let tree_str = "100644 blob 6b8710a711f3b689885aa5c26c6c06bde348e82b    .dockerignore
+100644 blob e3daab2779d1d0dc3e7738b5df94e404a9578ad1    .gitignore
+100644 blob 5c81555c8b0ec53d7e1dabcd8f538c5c9b8a575c    Cargo.lock
+100644 blob c76a26cedfa6110ac56e3dd7ef5fb5b448a904e3    Cargo.toml
+100644 blob 0b4c5dcbc09d289bfb7a07169a9cfe715e932b51    Dockerfile
+100644 blob e3f7423d01feccc4e64bd8c24be47eeb773b5393    docker-compose.yml
+040000 tree 8e4e40005572222671a3c3c7f9eada8fdf6c96f8    src";
+        let tree = Tree::from(&TREE).unwrap();
+        let res = format!("{}", tree);
+        assert_eq!(res, tree_str);
+    }
+    #[test]
+    fn test_tree_calc_hash() {
+        let tree = Tree::from(&TREE).unwrap();
+        assert_eq!(hex::encode(tree.calc_hash()), "9e060a21dc73a6b695f98cfed84620e1535327dc");
 
-//     }
+    }
 }

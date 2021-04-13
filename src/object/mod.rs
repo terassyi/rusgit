@@ -61,7 +61,7 @@ impl Object {
         Some(size)
     }
 
-    pub fn write(&self) -> io::Result<()> {
+    pub fn write(&self) -> io::Result<String> {
         let hash = hex::encode(self.calc_hash());
         let (sub_dir, name) = hash.split_at(2);
         let dir = format!("{}/{}", GIT_OBJECTS_DIR, sub_dir);
@@ -74,7 +74,7 @@ impl Object {
         encoder.write_all(&self.as_bytes())?;
         let data = encoder.finish().into_result()?;
         file.write(&data)?;
-        Ok(())
+        Ok(String::from(hash))
     }
 
     pub fn calc_hash(&self) -> Vec<u8> {
