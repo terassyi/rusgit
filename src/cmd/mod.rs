@@ -5,6 +5,7 @@ pub mod update_index;
 pub mod ls_files;
 pub mod add;
 pub mod write_tree;
+pub mod commit_tree;
 
 pub const RUSGIT_BASE_DIR: &str = ".rusgit";
 pub const RUSGIT_OBJECTS_DIR: &str = ".rusgit/objects";
