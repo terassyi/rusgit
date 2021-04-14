@@ -5,6 +5,7 @@ use std::path::Path;
 use std::io::Write;
 use std::io::Read;
 use std::fs::File;
+use crate::cmd::GIT_BASE_DIR;
 use crate::cmd::GIT_HEAD_FILE;
 use crate::cmd::GIT_REFS_HEADS_DIR;
 
@@ -20,8 +21,13 @@ pub fn read_head() -> io::Result<String> {
     let mut file = File::open(GIT_HEAD_FILE)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    let refs = String::from_utf8(buf).or(Err(io::Error::from(io::ErrorKind::NotFound)))?;
-    Ok(refs)
+    let content = String::from_utf8(buf).or(Err(io::Error::from(io::ErrorKind::NotFound)))?;
+    let mut iter = content.split_whitespace();
+    iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+    let refs = iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+    println!("read_head {}", refs);
+
+    Ok(format!("{}/{}", GIT_BASE_DIR, refs))
 }
 
 pub fn read_head_branch() -> io::Result<String> {
@@ -31,6 +37,14 @@ pub fn read_head_branch() -> io::Result<String> {
     let path = Path::new(str::from_utf8(&buf).unwrap());
     let branch = path.file_name().ok_or(io::Error::from(io::ErrorKind::NotFound))?;
     Ok(String::from(branch.to_str().unwrap()))
+}
+
+pub fn read_ref(path: &str) -> io::Result<String> {
+    let mut file = File::open(path)?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let hash = String::from_utf8(buf).or(Err(io::Error::from(io::ErrorKind::InvalidInput)))?;
+    Ok(hash)
 }
 
 fn write_ref(path: &str, hash: &str) -> io::Result<()> {

@@ -11,6 +11,7 @@ use crate::cmd::add;
 use crate::cmd::write_tree;
 use crate::cmd::commit_tree;
 use crate::cmd::update_ref;
+use crate::cmd::commit;
 
 pub mod cmd;
 mod object;
@@ -107,6 +108,14 @@ fn main() {
             .arg(Arg::with_name("sha1")
             .help("sha1 value")
             .required(true))
+        )
+        .subcommand(SubCommand::with_name("commit")
+            .about("commit")
+            .arg(Arg::with_name("message")
+            .help("commit message")
+            .short("m")
+            .takes_value(true)
+            .required(true)) // message must be specified
         );
 
     // parse subcommands and arguments
@@ -197,6 +206,13 @@ fn main() {
             let path = matches.value_of("ref").unwrap();
             let hash = matches.value_of("sha1").unwrap();
             update_ref::update_ref(path, hash).unwrap();
+        },
+        None => {},
+    };
+    match matches.subcommand_matches("commit") {
+        Some(matches) => {
+            let message = matches.value_of("message").unwrap();
+            commit::commit(message).unwrap();
         },
         None => {},
     };
