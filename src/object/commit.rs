@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use sha1::{Sha1, Digest};
+use std::io;
 use std::str;
 use std::fmt;
 
@@ -143,7 +144,7 @@ impl fmt::Display for Commit {
             format!("parent {}\n", parent)
         } else { String::from("") };
         write!(f,
-            "{}\n{}{}\n{}\n\n{}\n",
+            "{}\n{}author {}\ncommitter {}\n\n{}\n",
             tree,
             parent,
             self.author,
@@ -151,6 +152,14 @@ impl fmt::Display for Commit {
             self.message
         )
     }
+}
+
+pub fn commit_tree(name: &str, email: &str, tree_hash: &str, message: &str, parent: Option<&str>) -> io::Result<Commit> {
+    let utc = Utc::now();
+    let time = utc.with_timezone(&FixedOffset::east(9 * 360));
+    let user = User::new(name, email, time);
+    let commit = Commit::new(tree_hash, parent, user.clone(), user.clone(), message);
+    Ok(commit)
 }
 
 #[cfg(test)]
@@ -166,10 +175,45 @@ mod tests {
     use super::Commit;
     #[test]
     fn test_commit_from() {
-        let commit_str = "tree bd41dfafd2299ddc08ff789c8a777ff0b8ce9e4c\nparent a213f26901a29e8fecf60da136c31d61dd41544b\nauthor terassyi <iscale821@gmail.com> 1616834749 +0900\ncommitter terassyi <iscale821@gmail.com> 1616834749 +0900\n\r\nadd init cmd\n";
+        let commit_str = "tree bd41dfafd2299ddc08ff789c8a777ff0b8ce9e4c\nparent a213f26901a29e8fecf60da136c31d61dd41544b\nauthor terassyi <iscale821@gmail.com> 1616834749 +0900\ncommitter terassyi <iscale821@gmail.com> 1616834749 +0900\n\nadd init cmd\n";
         let commit = Commit::from(commit_str.as_bytes()).unwrap();
         assert_eq!(commit.tree, String::from("bd41dfafd2299ddc08ff789c8a777ff0b8ce9e4c"));
         assert_eq!(commit.parent, Some(String::from("a213f26901a29e8fecf60da136c31d61dd41544b")));
         assert_eq!(commit.message, String::from("add init cmd"));
+    }
+    #[test]
+    fn test_commit_fmt() {
+        let commit_str = "tree bd41dfafd2299ddc08ff789c8a777ff0b8ce9e4c\nparent a213f26901a29e8fecf60da136c31d61dd41544b\nauthor terassyi <iscale821@gmail.com> 1616834749 +0900\ncommitter terassyi <iscale821@gmail.com> 1616834749 +0900\n\nadd init cmd\n";
+        let commit = Commit::from(commit_str.as_bytes()).unwrap();
+        let res = format!("{}", commit);
+        assert_eq!(res, commit_str);
+    }
+    #[test]
+    fn test_commit_tree() {
+        let name = "test";
+        let email = "test@example.com";
+        let tree_hash = "test_tree_hash";
+        let message = "test message";
+        let commit = super::commit_tree(name, email, tree_hash, message, None).unwrap();
+        assert_eq!(commit.commiter.name, name);
+        assert_eq!(commit.author.email, email);
+        assert_eq!(commit.tree, tree_hash);
+        assert_eq!(commit.message, message);
+
+    }
+    #[test]
+    fn test_commit_tree_with_parent() {
+        let name = "test";
+        let email = "test@example.com";
+        let tree_hash = "test_tree_hash";
+        let parent = "parent";
+        let message = "test message";
+        let commit = super::commit_tree(name, email, tree_hash, message, Some(parent)).unwrap();
+        assert_eq!(commit.commiter.name, name);
+        assert_eq!(commit.author.email, email);
+        assert_eq!(commit.tree, tree_hash);
+        assert_eq!(commit.message, message);
+        assert_eq!(commit.parent, Some(String::from(parent)));
+
     }
 }

@@ -9,6 +9,7 @@ use crate::cmd::update_index;
 use crate::cmd::ls_files;
 use crate::cmd::add;
 use crate::cmd::write_tree;
+use crate::cmd::commit_tree;
 
 pub mod cmd;
 mod object;
@@ -81,6 +82,20 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("write-tree")
             .about("write index as tree object")
+        )
+        .subcommand(SubCommand::with_name("commit-tree")
+            .about("commit tree object")
+            .arg(Arg::with_name("sha1")
+            .help("sha1 value")
+            .required(true))
+            .arg(Arg::with_name("parent")
+            .help("parent commit object")
+            .takes_value(true)
+            .short("p"))
+            .arg(Arg::with_name("message")
+            .help("commit message")
+            .takes_value(true)
+            .short("m"))
         );
 
     // parse subcommands and arguments
@@ -157,5 +172,13 @@ fn main() {
     match matches.subcommand_matches("write-tree") {
         Some(_) => write_tree::write_tree().unwrap(),
         None => {}
+    };
+    match matches.subcommand_matches("commit-tree") {
+        Some(matches) => {
+            let sha1 = matches.value_of("sha1").unwrap();
+            let commit = commit_tree::commit_tree(sha1, matches.value_of("parent"), matches.value_of("message")).unwrap();
+            println!("{}", commit);
+        },
+        None => {},
     };
 }
