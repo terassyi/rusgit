@@ -10,10 +10,12 @@ use crate::cmd::ls_files;
 use crate::cmd::add;
 use crate::cmd::write_tree;
 use crate::cmd::commit_tree;
+use crate::cmd::update_ref;
 
 pub mod cmd;
 mod object;
 mod index;
+mod refs;
 
 fn main() {
     // rusgit app definition
@@ -96,6 +98,15 @@ fn main() {
             .help("commit message")
             .takes_value(true)
             .short("m"))
+        )
+        .subcommand(SubCommand::with_name("update-ref")
+            .about("update reference")
+            .arg(Arg::with_name("ref")
+            .help("reference path")
+            .required(true))
+            .arg(Arg::with_name("sha1")
+            .help("sha1 value")
+            .required(true))
         );
 
     // parse subcommands and arguments
@@ -178,6 +189,14 @@ fn main() {
             let sha1 = matches.value_of("sha1").unwrap();
             let commit = commit_tree::commit_tree(sha1, matches.value_of("parent"), matches.value_of("message")).unwrap();
             println!("{}", commit);
+        },
+        None => {},
+    };
+    match matches.subcommand_matches("update-ref") {
+        Some(matches) => {
+            let path = matches.value_of("ref").unwrap();
+            let hash = matches.value_of("sha1").unwrap();
+            update_ref::update_ref(path, hash).unwrap();
         },
         None => {},
     };

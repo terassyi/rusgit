@@ -2,6 +2,7 @@ use std::io;
 use std::fs;
 use std::fs::File;
 
+use crate::refs::create_head;
 use crate::cmd::RUSGIT_BASE_DIR;
 use crate::cmd::RUSGIT_OBJECTS_DIR;
 use crate::cmd::RUSGIT_REFS_DIR;
@@ -15,6 +16,6 @@ pub fn init_rusgit() -> io::Result<()> {
     }
     fs::create_dir(RUSGIT_OBJECTS_DIR)?;
     fs::create_dir(RUSGIT_REFS_DIR)?;
-    File::create(RUSGIT_HEAD_FILE)?;
+    create_head()?;
     Ok(())
 }
