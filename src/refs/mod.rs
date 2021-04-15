@@ -25,7 +25,6 @@ pub fn read_head() -> io::Result<String> {
     let mut iter = content.split_whitespace();
     iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
     let refs = iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
-    println!("read_head {}", refs);
 
     Ok(format!("{}/{}", GIT_BASE_DIR, refs))
 }
@@ -43,6 +42,7 @@ pub fn read_ref(path: &str) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
+    let buf = buf[0..buf.len()-1].to_vec();
     let hash = String::from_utf8(buf).or(Err(io::Error::from(io::ErrorKind::InvalidInput)))?;
     Ok(hash)
 }

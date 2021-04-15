@@ -31,39 +31,37 @@ pub fn cat_file(sha1: &str, opt: CatFileType) -> io::Result<()> {
     match opt {
         CatFileType::Type => {
             // rusgit cat-file -t <hash key> 
-            cat_file_t(&path)?;
+            print!("{}", cat_file_t(&path)?);
             
         },
         CatFileType::Size => {
             // rusgit cat-file -s <hash key>
-            cat_file_s(&path)?;
+            print!("{}", cat_file_s(&path)?);
         },
         CatFileType::Print => {
             // rusgit cat-file -p <hash key>
-            cat_file_p(&path)?;
+            print!("{}", cat_file_p(&path)?);
         }
     };
 
     Ok(())
 }
 
-fn cat_file_p(path: &str) -> io::Result<()> {
+pub fn cat_file_p(path: &str) -> io::Result<String> {
     let obj = file_to_object(path)?;
     match obj {
-        Object::Blob(blob) => print!("{}", blob.content),
-        Object::Commit(commit) => print!("{}", commit),
-        Object::Tree(tree) => print!("{}", tree),
-    };
-    Ok(())
+        Object::Blob(blob) => Ok(format!("{}", blob.content)),
+        Object::Commit(commit) => Ok(format!("{}", commit)),
+        Object::Tree(tree) => Ok(format!("{}", tree)),
+    }
 }
 
-fn cat_file_t(path: &str) -> io::Result<()> {
+fn cat_file_t(path: &str) -> io::Result<String> {
     let obj = file_to_object(path)?;
-    println!("{}", obj.typ().to_string());
-    Ok(())
+    Ok(format!("{}", obj.typ().to_string()))
 }
 
-fn cat_file_s(path: &str) -> io::Result<()> {
+fn cat_file_s(path: &str) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
@@ -73,8 +71,7 @@ fn cat_file_s(path: &str) -> io::Result<()> {
     let mut data = Vec::new();
     decoder.read_to_end(&mut data)?;
     let size = Object::size(&data).unwrap();
-    println!("{}", size);
-    Ok(())
+    Ok(format!("{}", size))
 }
 
 pub fn hash_key_to_path(sha1: &str) -> String {

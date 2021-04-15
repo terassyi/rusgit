@@ -42,6 +42,6 @@ pub fn commit(message: &str) -> io::Result<()> {
 
     // output
     let branch = Path::new(&ref_path).file_name().unwrap().to_str().unwrap();
-    println!("[{} {}] {}", branch, commit_hash[0..7], message);
+    println!("[{} {}] {}", branch, &commit_hash[0..7], message);
     Ok(())
 }

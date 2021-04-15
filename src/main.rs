@@ -12,6 +12,7 @@ use crate::cmd::write_tree;
 use crate::cmd::commit_tree;
 use crate::cmd::update_ref;
 use crate::cmd::commit;
+use crate::cmd::log;
 
 pub mod cmd;
 mod object;
@@ -116,6 +117,9 @@ fn main() {
             .short("m")
             .takes_value(true)
             .required(true)) // message must be specified
+        )
+        .subcommand(SubCommand::with_name("log")
+            .about("log")
         );
 
     // parse subcommands and arguments
@@ -214,6 +218,10 @@ fn main() {
             let message = matches.value_of("message").unwrap();
             commit::commit(message).unwrap();
         },
+        None => {},
+    };
+    match matches.subcommand_matches("log") {
+        Some(_) => log::log().unwrap(),
         None => {},
     };
 }
