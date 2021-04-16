@@ -13,6 +13,8 @@ use crate::cmd::commit_tree;
 use crate::cmd::update_ref;
 use crate::cmd::commit;
 use crate::cmd::log;
+use crate::cmd::status;
+use crate::cmd::diff;
 
 pub mod cmd;
 mod object;
@@ -120,6 +122,12 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("log")
             .about("log")
+        )
+        .subcommand(SubCommand::with_name("status")
+            .about("show status")
+        )
+        .subcommand(SubCommand::with_name("diff")
+            .about("show diff")
         );
 
     // parse subcommands and arguments
@@ -222,6 +230,14 @@ fn main() {
     };
     match matches.subcommand_matches("log") {
         Some(_) => log::log().unwrap(),
+        None => {},
+    };
+    match matches.subcommand_matches("status") {
+        Some(_) => status::status().unwrap(),
+        None => {},
+    };
+    match matches.subcommand_matches("diff") {
+        Some(_) => diff::diff().unwrap(),
         None => {},
     };
 }
