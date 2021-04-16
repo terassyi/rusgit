@@ -11,6 +11,12 @@ use std::os::macos::fs::MetadataExt;
 use std::os::linux::fs::MetadataExt;
 use chrono::{DateTime, TimeZone, Utc};
 use sha1::{Sha1, Digest};
+use crate::cmd::cat_file::{file_to_object, hash_key_to_path};
+use crate::object::Object;
+use crate::object::blob::Blob;
+use crate::index::diff::DiffEntry;
+
+mod diff;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -272,6 +278,25 @@ impl Index {
     fn tree_entries_size(&self) -> usize {
         self.tree_entries.iter().fold(0, |sum, e| sum + e.size())
     }
+
+    pub fn diff(&self) -> io::Result<Vec<DiffEntry>> {
+        let new_blobs = self.entries.iter()
+                        .map(|e| Blob::from_name(&e.name).unwrap())
+                        .collect::<Vec<Blob>>();
+        let old_blobs = self.entries.iter()
+                        .map(|e| {
+                            let hash = hex::encode(e.hash.clone());
+                            Blob::from_hash_file(&hash_key_to_path(&hash)).unwrap()
+                        })
+                        .collect::<Vec<Blob>>();
+        let names = self.entries.iter()
+                        .map(|e| e.name.clone())
+                        .collect::<Vec<String>>();
+        let diff_entries: Vec<DiffEntry> = (0..(names.len())).map(|i| DiffEntry::new(&names[i], new_blobs[i].clone(), old_blobs[i].clone()))
+                                            .filter(|e| e.is_modified())
+                                            .collect();
+        Ok(diff_entries)
+    }
 }
 
 impl fmt::Display for Index {
@@ -280,6 +305,7 @@ impl fmt::Display for Index {
             .try_for_each(|e| write!(f, "{}\n", e))
     }
 }
+
 
 pub fn tree_entrties_from_bytes(data: &[u8]) -> Option<Vec<TreeEntry>> {
     // <name>\0<entries> <sub trees>\n<hash><name>\0<entries> <sub trees>\n<hash><name>
@@ -694,6 +720,12 @@ mod tests {
         let res = index.as_bytes();
         assert_eq!(res.len(), 2302);
         assert_eq!(res, &index_data);
+    }
+    #[test]
+    fn test_index_diff() {
+        let index = Index::from(&index_data).unwrap();
+        let _ = index.diff().unwrap();
+        assert_eq!(true, true);
     }
     #[test]
     fn test_update_index() {
