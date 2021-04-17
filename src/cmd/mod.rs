@@ -27,3 +27,4 @@ pub const GIT_REFS_DIR: &str = ".git/refs";
 pub const GIT_REFS_HEADS_DIR: &str = ".git/refs/heads";
 pub const GIT_REFS_REMOTES_DIR: &str = ".git/refs/remotes";
 pub const GIT_HEAD_FILE: &str = ".git/HEAD";
+pub const GITIGNORE: &str = ".gitignore";

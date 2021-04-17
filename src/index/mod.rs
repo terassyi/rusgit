@@ -11,12 +11,13 @@ use std::os::macos::fs::MetadataExt;
 use std::os::linux::fs::MetadataExt;
 use chrono::{DateTime, TimeZone, Utc};
 use sha1::{Sha1, Digest};
-use crate::cmd::cat_file::{file_to_object, hash_key_to_path};
 use crate::object::Object;
 use crate::object::blob::Blob;
 use crate::index::diff::DiffEntry;
+use crate::cmd::cat_file::hash_key_to_path;
 
 mod diff;
+mod ignore;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -297,7 +298,35 @@ impl Index {
                                             .collect();
         Ok(diff_entries)
     }
+
+    pub fn tracked_files(&self) -> io::Result<Vec<String>> {
+        let gitignore = ignore::GitIgnore::read_gitignore()?;
+        gitignore.walk_dir()
+    }
+
+    pub fn untracked_files(&self) -> io::Result<Vec<String>> {
+        let mut files_index = 0;
+        let mut staged_index = 0;
+        let gitignore = ignore::GitIgnore::read_gitignore()?;
+        let mut files = gitignore.walk_dir()?;
+        let mut staged = self.entries.iter().map(|e| e.name.clone()).collect::<Vec<String>>();
+        staged.sort();
+        files.sort();
+        let mut untracked: Vec<String> = Vec::new();
+        for _i in (0..files.len()) {
+            if files[files_index] == self.entries[staged_index].name {
+                files_index += 1;
+                staged_index += 1;
+            } else {
+                untracked.push(files[files_index].clone());
+                files_index += 1;
+            }
+        }
+        Ok(untracked)
+    }
 }
+
+
 
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -725,6 +754,12 @@ mod tests {
     fn test_index_diff() {
         let index = Index::from(&index_data).unwrap();
         let _ = index.diff().unwrap();
+        assert_eq!(true, true);
+    }
+    #[test]
+    fn test_index_untracked_files() {
+        let index = Index::from(&index_data).unwrap();
+        let _untracked = index.untracked_files().unwrap();
         assert_eq!(true, true);
     }
     #[test]
