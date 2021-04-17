@@ -1,5 +1,6 @@
 
 use std::io;
+use std::fs;
 use std::str;
 use std::path::Path;
 use std::io::Write;
@@ -29,13 +30,35 @@ pub fn read_head() -> io::Result<String> {
     Ok(format!("{}/{}", GIT_BASE_DIR, refs))
 }
 
+pub fn create_branch(name: &str) -> io::Result<()> {
+    let ref_path = format!("{}/{}", GIT_REFS_HEADS_DIR, name);
+    println!("{}", ref_path);
+    let head_path = read_head()?;
+    let head_hash = read_ref(&head_path)?;
+    let mut file = File::create(ref_path)?;
+    file.write_all(head_hash.as_bytes())
+}
+
 pub fn read_head_branch() -> io::Result<String> {
+    // get head branch name
     let mut file = File::open(GIT_HEAD_FILE)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    let path = Path::new(str::from_utf8(&buf).unwrap());
+    let path = Path::new(str::from_utf8(&buf[0..buf.len()-1]).unwrap());
     let branch = path.file_name().ok_or(io::Error::from(io::ErrorKind::NotFound))?;
+
     Ok(String::from(branch.to_str().unwrap()))
+}
+
+pub fn show_branches() -> io::Result<Vec<String>> {
+    let branchs = fs::read_dir(GIT_REFS_HEADS_DIR)?
+                        .flat_map(|f| f)
+                        .map(|f| {
+                            let name = f.file_name();
+                            String::from(name.to_str().unwrap())
+                        })
+                        .collect::<Vec<String>>();
+    Ok(branchs)
 }
 
 pub fn read_ref(path: &str) -> io::Result<String> {
@@ -73,5 +96,11 @@ mod tests {
             Err(_) => false,
         };
         assert_eq!(refs, true);
+    }
+    #[test]
+    fn test_show_branches() {
+        let branches = super::show_branches().unwrap();
+        for branch in branches.iter() { println!("{}", branch); }
+        assert_eq!(branches.len() > 0, true);
     }
 }

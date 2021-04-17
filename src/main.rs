@@ -16,6 +16,7 @@ use crate::cmd::commit;
 use crate::cmd::log;
 use crate::cmd::status;
 use crate::cmd::diff;
+use crate::cmd::branch;
 
 pub mod cmd;
 mod object;
@@ -129,6 +130,12 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("diff")
             .about("show diff")
+        )
+        .subcommand(SubCommand::with_name("branch")
+            .about("show branch")
+            .arg(Arg::with_name("branch-name")
+            .help("branch name")
+            .takes_value(true))
         );
 
     // parse subcommands and arguments
@@ -239,6 +246,13 @@ fn main() {
     };
     match matches.subcommand_matches("diff") {
         Some(_) => diff::diff().unwrap(),
+        None => {},
+    };
+    match matches.subcommand_matches("branch") {
+        Some(matches) => {
+            let branch_name = matches.value_of("branch-name");
+            branch::branch(branch_name).unwrap()
+        },
         None => {},
     };
 }
