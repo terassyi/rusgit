@@ -6,6 +6,9 @@ use std::path::Path;
 use std::io::Write;
 use std::io::Read;
 use std::fs::File;
+use crate::cmd::cat_file::hash_key_to_path;
+use crate::object::commit::Commit;
+use crate::object::tree::Tree;
 use crate::cmd::GIT_BASE_DIR;
 use crate::cmd::GIT_HEAD_FILE;
 use crate::cmd::GIT_REFS_HEADS_DIR;
@@ -30,6 +33,14 @@ pub fn read_head() -> io::Result<String> {
     Ok(format!("{}/{}", GIT_BASE_DIR, refs))
 }
 
+fn update_head(name: &str) -> io::Result<String> {
+    let mut file = File::create(GIT_HEAD_FILE)?; 
+    let path = format!("{}/{}", GIT_REFS_HEADS_DIR, name);
+    let content = format!("{} {}\n", REFS, path);
+    file.write_all(&mut content.as_bytes())?;
+    Ok(path)
+}
+
 pub fn create_branch(name: &str) -> io::Result<()> {
     let ref_path = format!("{}/{}", GIT_REFS_HEADS_DIR, name);
     println!("{}", ref_path);
@@ -37,6 +48,18 @@ pub fn create_branch(name: &str) -> io::Result<()> {
     let head_hash = read_ref(&head_path)?;
     let mut file = File::create(ref_path)?;
     file.write_all(head_hash.as_bytes())
+}
+
+pub fn switch_branch(name: &str) -> io::Result<()> {
+    let path = update_head(name)?; // update .git/HEAD
+    // update contents
+    let head_hash = read_ref(&path)?;
+    println!("HEAD [{}] {}", path, head_hash);
+    let commit = Commit::from_hash_file(&hash_key_to_path(&head_hash))?; 
+    let tree = Tree::from_hash_file(&hash_key_to_path(&commit.tree))?; 
+    tree.switch()?;
+    // update .git/index
+    Ok(())
 }
 
 pub fn read_head_branch() -> io::Result<String> {
@@ -65,7 +88,7 @@ pub fn read_ref(path: &str) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    let buf = buf[0..buf.len()-1].to_vec();
+    let buf = if buf[buf.len() - 1] == b'\n' { buf[0..buf.len()-1].to_vec() } else { buf.to_vec() };
     let hash = String::from_utf8(buf).or(Err(io::Error::from(io::ErrorKind::InvalidInput)))?;
     Ok(hash)
 }

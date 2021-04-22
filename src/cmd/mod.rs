@@ -12,6 +12,7 @@ pub mod log;
 pub mod status;
 pub mod diff;
 pub mod branch;
+pub mod checkout;
 
 pub const RUSGIT_BASE_DIR: &str = ".rusgit";
 pub const RUSGIT_OBJECTS_DIR: &str = ".rusgit/objects";

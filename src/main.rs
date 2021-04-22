@@ -17,6 +17,7 @@ use crate::cmd::log;
 use crate::cmd::status;
 use crate::cmd::diff;
 use crate::cmd::branch;
+use crate::cmd::checkout;
 
 pub mod cmd;
 mod object;
@@ -136,6 +137,15 @@ fn main() {
             .arg(Arg::with_name("branch-name")
             .help("branch name")
             .takes_value(true))
+        )
+        .subcommand(SubCommand::with_name("checkout")
+            .about("switch branch")
+            .arg(Arg::with_name("branch")
+            .help("branch name")
+            .takes_value(true))
+            .arg(Arg::with_name("new-branch")
+            .help("create and checkout a new branch")
+            .short("b"))
         );
 
     // parse subcommands and arguments
@@ -252,6 +262,14 @@ fn main() {
         Some(matches) => {
             let branch_name = matches.value_of("branch-name");
             branch::branch(branch_name).unwrap()
+        },
+        None => {},
+    };
+    match matches.subcommand_matches("checkout") {
+        Some(matches) => {
+            let branch_name = matches.value_of("branch").unwrap();
+            let new_branch = if let Some(_) = matches.args.get("new-branch") { true } else { false };
+            checkout::checkout(branch_name, new_branch).unwrap();
         },
         None => {},
     };

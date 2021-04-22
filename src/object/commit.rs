@@ -1,8 +1,10 @@
 use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use sha1::{Sha1, Digest};
 use std::io;
+use std::io::Read;
 use std::str;
 use std::fmt;
+use std::fs::File;
 
 use crate::object::{Object, ObjectType};
 
@@ -119,6 +121,14 @@ impl Commit {
             commiter,
             message,
         })
+    }
+
+    pub fn from_hash_file(name: &str) -> io::Result<Commit> {
+        let mut file = File::open(name)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let commit = Commit::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+        Ok(commit)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {

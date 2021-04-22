@@ -3,10 +3,21 @@ use sha1::{Sha1, Digest};
 use std::str;
 use std::fmt;
 use std::io;
+use std::os::unix::fs::PermissionsExt;
+#[cfg(target_os = "macos")]
+use std::os::macos::fs::MetadataExt;
+#[cfg(target_os = "linux")]
+use std::os::linux::fs::MetadataExt;
+use std::io::Read;
+use std::io::Write;
 use std::path::Path;
+use std::fs;
 
 use crate::object::{Object, ObjectType};
+use crate::object::blob::Blob;
 use crate::index;
+use crate::index::{Index, Entry};
+use crate::cmd::cat_file::hash_key_to_path;
 use crate::cmd::GIT_INDEX;
 
 #[derive(Debug, Clone)]
@@ -50,6 +61,18 @@ impl File {
     pub fn encode(&self) -> Vec<u8> {
         let header = format!("{} {}\0", self.mode, self.name);
         [header.as_bytes(), &self.hash].concat()
+    }
+
+    fn switch(&self) -> io::Result<()> {
+        let blob = Blob::from_hash_file(&hash_key_to_path(&hex::encode(self.hash.clone())))?;
+        let mut file = fs::File::create(&self.name)?;
+        let metadata = file.metadata()?;
+        let mut permission = metadata.permissions();
+        permission.set_mode(self.mode as u32);
+        // write content from blob object
+        file.write_all(blob.content.as_bytes())?;
+        println!("switch contents {}", self.name);
+        Ok(())
     }
 }
 
@@ -108,6 +131,14 @@ impl Tree {
         Some(Tree::new(files))
     }
 
+    pub fn from_hash_file(name: &str) -> io::Result<Tree> {
+        let mut file = fs::File::open(name)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let tree = Tree::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+        Ok(tree)
+    }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let content: Vec<u8> = self.files.iter().flat_map(|file| file.encode()).collect();
         let header = format!("{} {}\0", ObjectType::Tree.to_string(), content.len());
@@ -122,6 +153,17 @@ impl Tree {
     pub fn typ(&self) -> ObjectType {
         ObjectType::Tree
     }
+
+    pub fn switch(&self) -> io::Result<()> {
+        for file in self.files.iter() {
+            file.switch()?;
+        }
+        Ok(())
+    }
+
+    // fn tree_to_index(&self) -> io::Result<Index> {
+
+    // }
 }
 
 impl fmt::Display for Tree {
