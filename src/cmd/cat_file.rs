@@ -76,7 +76,7 @@ fn cat_file_s(path: &str) -> io::Result<String> {
 
 pub fn hash_key_to_path(sha1: &str) -> String {
     let (dir, file) = sha1.split_at(2);
-    // format!("{}/{}/{}", RUSGIT_OBJECTS_DIR, dir, file)
+    println!("{}", format!("{}/{}/{}", GIT_OBJECTS_DIR, dir, file));
     format!("{}/{}/{}", GIT_OBJECTS_DIR, dir, file)
 }
 

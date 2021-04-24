@@ -94,7 +94,7 @@ impl Entry {
     }
 
     #[cfg(target_os = "linux")]
-    fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
+    pub fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
         let metadata = fs::metadata(name)?;
         let c_time = metadata.st_ctime() as u32;
         let c_time_nano = metadata.st_ctime_nsec() as u32;
@@ -115,7 +115,7 @@ impl Entry {
     }
 
     #[cfg(target_os = "macos")]
-    fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
+    pub fn from_name(hash: Vec<u8>, name: &str) -> io::Result<Entry> {
         let metadata = fs::metadata(name)?;
         let c_time = metadata.st_ctime() as u32;
         let c_time_nano = metadata.st_ctime_nsec() as u32;

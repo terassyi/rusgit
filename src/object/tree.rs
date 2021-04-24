@@ -74,6 +74,13 @@ impl File {
         println!("switch contents {}", self.name);
         Ok(())
     }
+
+    // This method should not use.
+    fn to_entry(&self) -> io::Result<Entry> {
+        // TODO: I'm not sure that this way is correct.
+        Entry::from_name(self.hash.clone(), &self.name)
+    }
+    
 }
 
 fn is_dir(path: &str) -> ObjectType {
@@ -160,10 +167,31 @@ impl Tree {
         }
         Ok(())
     }
+    
+    fn to_entries(&self) -> io::Result<Vec<Entry>> {
+        let mut entries: Vec<Entry> = Vec::new();
+        for file in self.files.iter() {
+            if is_dir(&file.name) == ObjectType::Tree {
+                let path = hex::encode(file.hash.clone());
+                let tree = Tree::from_hash_file(&hash_key_to_path(&path))?;
+                let mut e = tree.to_entries()?;
+                entries.append(&mut e);
+            } else {
+                let entry = file.to_entry()?;    
+                entries.push(entry);
+            }
+        }
+        Ok(entries)
+    }
 
-    // fn tree_to_index(&self) -> io::Result<Index> {
-
-    // }
+    pub fn to_index(&self) -> io::Result<Index> {
+        let entries = self.files.iter()
+                        .map(|file| file.to_entry())
+                        .flat_map(|f| f)
+                        .collect::<Vec<Entry>>();
+        let tree_entries = Vec::new();
+        Ok(Index::new(entries, tree_entries))
+    }
 }
 
 impl fmt::Display for Tree {
@@ -276,6 +304,14 @@ mod tests {
     fn test_tree_calc_hash() {
         let tree = Tree::from(&TREE).unwrap();
         assert_eq!(hex::encode(tree.calc_hash()), "9e060a21dc73a6b695f98cfed84620e1535327dc");
+
+    }
+    #[test]
+    fn test_tree_to_entries() {
+        let tree = Tree::from(&TREE).unwrap();
+        let entries = tree.to_entries().unwrap();
+        assert_eq!(&entries[0].name, ".dockerignore");
+        assert_eq!(entries.len() > 7, true);
 
     }
 }
