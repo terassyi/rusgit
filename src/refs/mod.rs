@@ -56,8 +56,9 @@ pub fn switch_branch(name: &str) -> io::Result<()> {
     let head_hash = read_ref(&path)?;
     println!("HEAD [{}] {}", path, head_hash);
     let commit = Commit::from_hash_file(&hash_key_to_path(&head_hash))?; 
+    println!("success to create commit object {}", commit.tree);
     let tree = Tree::from_hash_file(&hash_key_to_path(&commit.tree))?; 
-    tree.switch()?;
+    tree.switch(".")?;
     // update .git/index
     Ok(())
 }

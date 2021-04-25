@@ -5,6 +5,7 @@ use std::io::Read;
 use std::str;
 use std::fmt;
 use std::fs::File;
+use libflate::zlib::{Encoder, Decoder};
 
 use crate::object::{Object, ObjectType};
 
@@ -96,12 +97,14 @@ impl Commit {
     }
 
     pub fn from(data: &[u8]) -> Option<Self> {
+        println!("commit from");
         let mut lines = data.split(|&d| d == b'\n').filter(|&d| d != b"");
         let c = lines.clone().count();
         let tree = str::from_utf8(lines.next()?)
             .ok()?
             .split_whitespace()
             .last()?;
+        println!("commit from {}", tree);
         let parent = if c == 5 {
             // parent exists
             Some(String::from(str::from_utf8(lines.next()?)
@@ -125,9 +128,13 @@ impl Commit {
 
     pub fn from_hash_file(name: &str) -> io::Result<Commit> {
         let mut file = File::open(name)?;
+        println!("commit from hash");
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
-        let commit = Commit::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
+        let mut decoder = Decoder::new(&buf[..])?;
+        let mut data = Vec::new();
+        decoder.read_to_end(&mut data)?;
+        let commit = Commit::from(&data).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
         Ok(commit)
     }
 

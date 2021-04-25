@@ -10,13 +10,14 @@ use std::os::macos::fs::MetadataExt;
 use std::os::linux::fs::MetadataExt;
 use std::io::Read;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
+use libflate::zlib::{Encoder, Decoder};
 
 use crate::object::{Object, ObjectType};
 use crate::object::blob::Blob;
 use crate::index;
-use crate::index::{Index, Entry};
+use crate::index::{Index, Entry, TreeEntry};
 use crate::cmd::cat_file::hash_key_to_path;
 use crate::cmd::GIT_INDEX;
 
@@ -45,6 +46,7 @@ impl File {
 
     pub fn from(hdr: &[u8], hash: &[u8]) -> Option<Self> {
         let iterstr = str::from_utf8(hdr).ok()?;
+        println!("file from {}", iterstr);
         let mut iter = iterstr
                     .split_whitespace();
         let mode = iter.next()
@@ -63,15 +65,16 @@ impl File {
         [header.as_bytes(), &self.hash].concat()
     }
 
-    fn switch(&self) -> io::Result<()> {
-        let blob = Blob::from_hash_file(&hash_key_to_path(&hex::encode(self.hash.clone())))?;
-        let mut file = fs::File::create(&self.name)?;
-        let metadata = file.metadata()?;
-        let mut permission = metadata.permissions();
-        permission.set_mode(self.mode as u32);
-        // write content from blob object
-        file.write_all(blob.content.as_bytes())?;
+    fn switch(&self, base: &str) -> io::Result<()> {
+        // file object may be a directory.
         println!("switch contents {}", self.name);
+        let blob = Blob::from_hash_file(&hash_key_to_path(&hex::encode(self.hash.clone())))?;
+        // let mut file = fs::File::create(&self.name)?;
+        // let metadata = file.metadata()?;
+        // let mut permission = metadata.permissions();
+        // permission.set_mode(self.mode as u32);
+        // write content from blob object
+        // file.write_all(blob.content.as_bytes())?;
         Ok(())
     }
 
@@ -113,20 +116,25 @@ impl Tree {
 
     pub fn from(data: &[u8]) -> Option<Self> {
         // <mode> <name>\0<hash><mode> <name>\0<hash>....<mode> <name>\0<hash>
+        println!("tree from {:?}", data);
         let mut files: Vec<File> = Vec::new();
         let splitter_offsets: Vec<usize> = data.iter().enumerate()
                                 .filter(|(_, &d)| d == b'\0' )
                                 .map(|(off, _)| off )
                                 .collect();
+        println!("split {:?}", splitter_offsets);
         let mut offsets: Vec<usize> = Vec::new();
         let mut prev = 0;
         for i in splitter_offsets {
             if i - prev >= 20 {
                 // \0 in hash
-                offsets.push(i)
+                offsets.push(i);
+            } else if i < 20 {
+                offsets.push(i);
             }
             prev = i;
         }
+        println!("offset{:?}", offsets);
         let mut head = 0;
         for offset in offsets.iter() {
             let hdr = &data[head..*offset];
@@ -139,11 +147,17 @@ impl Tree {
     }
 
     pub fn from_hash_file(name: &str) -> io::Result<Tree> {
+        println!("tree from hash");
         let mut file = fs::File::open(name)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
-        let tree = Tree::from(&buf).ok_or(io::Error::from(io::ErrorKind::InvalidData))?;
-        Ok(tree)
+        let mut decoder = Decoder::new(&buf[..])?;
+        let mut data = Vec::new();
+        decoder.read_to_end(&mut data)?;
+        let mut iter = data.splitn(2, |&b| b == b'\0');
+        iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+        let d = iter.next().ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+        Tree::from(&d).ok_or(io::Error::from(io::ErrorKind::InvalidInput))
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -161,24 +175,53 @@ impl Tree {
         ObjectType::Tree
     }
 
-    pub fn switch(&self) -> io::Result<()> {
+    pub fn switch(&self, base: &str) -> io::Result<()> {
         for file in self.files.iter() {
-            file.switch()?;
+            let mut base_path = PathBuf::from(base);
+            base_path.push(&file.name);
+            let p = base_path.as_path().to_str()
+                        .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+            println!("switch path {}", p);
+            if is_dir(p) == ObjectType::Tree {
+                let path = hex::encode(file.hash.clone());
+                println!("switch tree path {}", path);
+                let tree = Tree::from_hash_file(&hash_key_to_path(&path))?;
+                tree.switch(p)?;
+            } else {
+                file.switch(p)?;
+            }
         }
         Ok(())
     }
     
-    fn to_entries(&self) -> io::Result<Vec<Entry>> {
+    fn to_entries(&self, base: &str) -> io::Result<Vec<Entry>> {
         let mut entries: Vec<Entry> = Vec::new();
         for file in self.files.iter() {
-            if is_dir(&file.name) == ObjectType::Tree {
+            let mut base_path = PathBuf::from(base);
+            base_path.push(&file.name);
+            let p = base_path.as_path().to_str()
+                        .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
+            if is_dir(p) == ObjectType::Tree {
                 let path = hex::encode(file.hash.clone());
+                println!("path {}", path);
                 let tree = Tree::from_hash_file(&hash_key_to_path(&path))?;
-                let mut e = tree.to_entries()?;
+                let mut e = tree.to_entries(p)?;
                 entries.append(&mut e);
             } else {
                 let entry = file.to_entry()?;    
                 entries.push(entry);
+            }
+        }
+        Ok(entries)
+    }
+
+    fn to_tree_entries(&self) -> io::Result<Vec<TreeEntry>> {
+        let mut entries: Vec<TreeEntry> = Vec::new();
+        for file in self.files.iter() {
+            if is_dir(&file.name) == ObjectType::Tree {
+                let path = hex::encode(file.hash.clone());
+                println!("path {}", path);
+
             }
         }
         Ok(entries)
@@ -252,6 +295,7 @@ mod tests {
         0x34, 0x30, 0x30, 0x30, 0x30, 0x20, 0x73, 0x72, 0x63, 0x00, 
             0x8e, 0x4e, 0x40, /* \0 in hash value */0x00, 0x55, 0x72, 0x22, 0x26, 0x71, 0xa3, 0xc3, 0xc7, 0xf9, 0xea, 0xda, 0x8f, 0xdf, 0x6c, 0x96, 0xf8, 
     ];
+    
     #[test]
     fn test_file_from() {
         let file = File::from(&FILE[0..20], &FILE[21..]).unwrap();
