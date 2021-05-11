@@ -27,6 +27,7 @@ pub const GIT_OBJECTS_DIR: &str = ".git/objects";
 pub const GIT_INDEX: &str = ".git/index";
 pub const GIT_REFS_DIR: &str = ".git/refs";
 pub const GIT_REFS_HEADS_DIR: &str = ".git/refs/heads";
+pub const REFS_HEADS_DIR: &str = "refs/heads";
 pub const GIT_REFS_REMOTES_DIR: &str = ".git/refs/remotes";
 pub const GIT_HEAD_FILE: &str = ".git/HEAD";
 pub const GITIGNORE: &str = ".gitignore";

@@ -12,12 +12,13 @@ use crate::object::tree::Tree;
 use crate::cmd::GIT_BASE_DIR;
 use crate::cmd::GIT_HEAD_FILE;
 use crate::cmd::GIT_REFS_HEADS_DIR;
+use crate::cmd::REFS_HEADS_DIR;
 
 const REFS: &str = "ref:";
 
 pub fn create_head() -> io::Result<()> {
     let mut file = File::create(GIT_HEAD_FILE)?; 
-    let content = format!("{} {}/master", REFS, GIT_REFS_HEADS_DIR);
+    let content = format!("{} {}/master", REFS, REFS_HEADS_DIR);
     file.write_all(&mut content.as_bytes())
 }
 
@@ -35,15 +36,14 @@ pub fn read_head() -> io::Result<String> {
 
 fn update_head(name: &str) -> io::Result<String> {
     let mut file = File::create(GIT_HEAD_FILE)?; 
-    let path = format!("{}/{}", GIT_REFS_HEADS_DIR, name);
+    let path = format!("{}/{}", REFS_HEADS_DIR, name);
     let content = format!("{} {}\n", REFS, path);
     file.write_all(&mut content.as_bytes())?;
-    Ok(path)
+    Ok(format!(".git/{}", path))
 }
 
 pub fn create_branch(name: &str) -> io::Result<()> {
     let ref_path = format!("{}/{}", GIT_REFS_HEADS_DIR, name);
-    println!("{}", ref_path);
     let head_path = read_head()?;
     let head_hash = read_ref(&head_path)?;
     let mut file = File::create(ref_path)?;
@@ -54,9 +54,7 @@ pub fn switch_branch(name: &str) -> io::Result<()> {
     let path = update_head(name)?; // update .git/HEAD
     // update contents
     let head_hash = read_ref(&path)?;
-    println!("HEAD [{}] {}", path, head_hash);
     let commit = Commit::from_hash_file(&hash_key_to_path(&head_hash))?; 
-    println!("success to create commit object {}", commit.tree);
     let tree = Tree::from_hash_file(&hash_key_to_path(&commit.tree))?; 
     tree.switch(".")?;
     // update .git/index

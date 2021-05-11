@@ -358,6 +358,9 @@ pub fn tree_entrties_from_bytes(data: &[u8]) -> Option<Vec<TreeEntry>> {
                             .filter(|(_, &d)| d == b'\n' )
                             .map(|(off, _)| off + 21)
                             .collect();
+    if splitter_offsets.len() == 0 {
+        return Some(tree_entries);
+    }
     let mut tails: Vec<usize> = Vec::new();
     tails.push(splitter_offsets[0]); // first
     let mut i = splitter_offsets[0];

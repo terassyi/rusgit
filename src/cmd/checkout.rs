@@ -3,9 +3,11 @@ use std::io;
 use crate::refs;
 
 pub fn checkout(branch: &str, new: bool) -> io::Result<()> {
-    println!("checkout {} new? {}", branch, new);
     match new {
-        true => {},
+        true => {
+            refs::create_branch(branch)?;
+            refs::switch_branch(branch)?;
+        },
         false => {
             refs::switch_branch(branch)?;
         },
