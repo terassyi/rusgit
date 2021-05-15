@@ -6,13 +6,13 @@ use crate::cmd::GIT_INDEX;
 pub fn status() -> io::Result<()> {
     let index = index::read_index(GIT_INDEX)?;
     let diff_entries = index.diff().unwrap();
-    if diff_entries.len() == 0 {
-        println!("nothing to commit, working tree clean");
-        return Ok(());
-    }
-    println!("Changes not staged for commit:");
-    for d in diff_entries.iter() {
-        println!("\tmodified:\t{}", d.name);
+    if diff_entries.len() != 0 {
+        println!("Changes not staged for commit:");
+        for d in diff_entries.iter() {
+            println!("\tmodified:\t{}", d.name);
+        }
+    } else {
+        // println!("nothing to commit, working tree clean");
     }
 
     let untracked = index.untracked_files()?;

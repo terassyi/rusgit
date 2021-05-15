@@ -14,15 +14,12 @@ pub fn commit(message: &str) -> io::Result<()> {
     */
     // git write-tree
     let tree = tree::write_tree()?;
-    println!("success write tree");
     let obj = Object::Tree(tree);
     let hash = obj.write()?;
-    println!("success write object");
 
     // git commit-tree
     // look up parent commit
     let ref_path = refs::read_head()?;
-    println!("success read object");
     let parent_res = refs::read_ref(&ref_path);
     let parent: Option<&str> = match  parent_res {
         Ok(ref p) => Some(p),

@@ -254,7 +254,6 @@ impl Index {
         let entries = (0..entry_size).try_fold((0, Vec::new()), |(offset, mut entries), _| {
             let entry = Entry::from(&data[(12 + offset)..])?;
             let size = entry.size();
-            println!("entry {} {} {}", entry.name, hex::encode(entry.hash.clone()), offset + size);
             entries.push(entry);
             Some((offset + size, entries))
         })
@@ -263,13 +262,10 @@ impl Index {
         if data.len() == total {
             return Some(Index::new(entries, Vec::new()));
         }
-        println!("++++++++++tree entry++++++++");
-        println!("total {:?}", total);
         if &data[total..(total+4)] != b"TREE" {
             return Some(Index::new(entries, Vec::new()));
         }
         let tree_entry_size = hex_to_num(&data[(total+4)..(total+8)]);
-        println!("tree entry size {}", tree_entry_size);
         let tree_entries = tree_entrties_from_bytes(&data[(total+8)..])?;
         Some(Index::new(entries, tree_entries))
     }
@@ -280,7 +276,11 @@ impl Index {
                         .flat_map(|d| d.as_bytes())
                         .collect::<Vec<u8>>();
         let content = [hdr, entries].concat();
-
+        if self.tree_entries.len() == 0 {
+            let hash = Vec::from(Sha1::digest(&content).as_slice());
+            return [content, hash].concat();
+        }
+        // if tree section is exist.
         let tree_entry_hdr = [*b"TREE", (self.tree_entries_size() as u32).to_be_bytes()].concat();
         let tree_entrries = self.tree_entries.iter()
                             .flat_map(|e| e.as_bytes())
@@ -308,9 +308,15 @@ impl Index {
         let names = self.entries.iter()
                         .map(|e| e.name.clone())
                         .collect::<Vec<String>>();
-        let diff_entries: Vec<DiffEntry> = (0..(names.len())).map(|i| DiffEntry::new(&names[i], new_blobs[i].clone(), old_blobs[i].clone()))
-                                            .filter(|e| e.is_modified())
-                                            .collect();
+        let diff_entries: Vec<DiffEntry> = (0..(names.len()))
+                        .map(|i| {
+                            let metadata = fs::metadata(&self.entries[i].name).unwrap();
+                            let new_mode = num_to_mode_num(metadata.st_mode()).unwrap();
+                            let old_mode = self.entries[i].mode;
+                            DiffEntry::new(&names[i], new_blobs[i].clone(), old_blobs[i].clone(), new_mode, old_mode)
+                        })
+                        .filter(|e| e.is_modified())
+                        .collect();
         Ok(diff_entries)
     }
 
@@ -328,13 +334,20 @@ impl Index {
         staged.sort();
         files.sort();
         let mut untracked: Vec<String> = Vec::new();
-        for _i in (0..files.len()) {
-            if files[files_index] == self.entries[staged_index].name {
-                files_index += 1;
-                staged_index += 1;
-            } else {
-                untracked.push(files[files_index].clone());
-                files_index += 1;
+        for _i in 0..files.len() {
+            if staged.len() > staged_index {
+                if files[files_index] == self.entries[staged_index].name {
+                    files_index += 1;
+                    staged_index += 1;
+                } else {
+                    untracked.push(files[files_index].clone());
+                    files_index += 1;
+                }
+            }
+            untracked.push(files[files_index].clone());
+            files_index += 1;
+            if files_index >= files.len() {
+                break;
             }
         }
         Ok(untracked)

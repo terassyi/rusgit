@@ -1,5 +1,5 @@
 extern crate clap;
-// extern crate walkdir;
+extern crate wu_diff;
 
 use clap::{App, Arg, SubCommand};
 

@@ -40,6 +40,9 @@ impl GitIgnore {
     }
 
     pub fn is_ignored(&self, entry: &Path) -> bool {
+        if entry.eq(Path::new(".git")) {
+            return true
+        }
         self.files.iter()
             .map(|f| entry.starts_with(f))
             .fold(false, |b, is_ignored| b || is_ignored )
@@ -81,7 +84,7 @@ mod tests {
     fn test_read_gitignore() {
         let line = super::GitIgnore::read_gitignore().unwrap();
         assert_eq!(line.files[0], "./target");
-        assert_eq!(line.files[line.files.len()-1], super::GIT_BASE_DIR);
+        assert_eq!(line.files[line.files.len()-1], format!("./{}", super::GIT_BASE_DIR));
     }
     #[test]
     fn test_is_ignored() {
@@ -96,13 +99,13 @@ mod tests {
         let gitignore = super::GitIgnore::read_gitignore().unwrap();
         let files: Vec<String> = Vec::new();
         let f = gitignore.walk_dir_recursive(".", files).unwrap();
-        assert_eq!(f[0], "./Cargo.toml");
+        assert_eq!(f[0], "./src/main.rs");
     }
     #[test]
     fn test_walk_dir() {
         let gitignore = super::GitIgnore::read_gitignore().unwrap();
         let files = gitignore.walk_dir().unwrap();
-        assert_eq!(files[0], "Cargo.toml");
+        assert_eq!(files[0], "src/main.rs");
 
     }
     #[test]

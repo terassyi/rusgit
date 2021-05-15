@@ -46,7 +46,6 @@ impl File {
 
     pub fn from(hdr: &[u8], hash: &[u8]) -> Option<Self> {
         let iterstr = str::from_utf8(hdr).ok()?;
-        println!("file from {}", iterstr);
         let mut iter = iterstr
                     .split_whitespace();
         let mode = iter.next()
@@ -67,14 +66,7 @@ impl File {
 
     fn switch(&self, base: &str) -> io::Result<()> {
         // file object may be a directory.
-        println!("switch contents {}", self.name);
         let blob = Blob::from_hash_file(&hash_key_to_path(&hex::encode(self.hash.clone())))?;
-        // let mut file = fs::File::create(&self.name)?;
-        // let metadata = file.metadata()?;
-        // let mut permission = metadata.permissions();
-        // permission.set_mode(self.mode as u32);
-        // write content from blob object
-        // file.write_all(blob.content.as_bytes())?;
         Ok(())
     }
 
@@ -116,13 +108,11 @@ impl Tree {
 
     pub fn from(data: &[u8]) -> Option<Self> {
         // <mode> <name>\0<hash><mode> <name>\0<hash>....<mode> <name>\0<hash>
-        println!("tree from {:?}", data);
         let mut files: Vec<File> = Vec::new();
         let splitter_offsets: Vec<usize> = data.iter().enumerate()
                                 .filter(|(_, &d)| d == b'\0' )
                                 .map(|(off, _)| off )
                                 .collect();
-        println!("split {:?}", splitter_offsets);
         let mut offsets: Vec<usize> = Vec::new();
         let mut prev = 0;
         for i in splitter_offsets {
@@ -134,7 +124,6 @@ impl Tree {
             }
             prev = i;
         }
-        println!("offset{:?}", offsets);
         let mut head = 0;
         for offset in offsets.iter() {
             let hdr = &data[head..*offset];
@@ -147,7 +136,6 @@ impl Tree {
     }
 
     pub fn from_hash_file(name: &str) -> io::Result<Tree> {
-        println!("tree from hash");
         let mut file = fs::File::open(name)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -181,10 +169,8 @@ impl Tree {
             base_path.push(&file.name);
             let p = base_path.as_path().to_str()
                         .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
-            println!("switch path {}", p);
             if is_dir(p) == ObjectType::Tree {
                 let path = hex::encode(file.hash.clone());
-                println!("switch tree path {}", path);
                 let tree = Tree::from_hash_file(&hash_key_to_path(&path))?;
                 tree.switch(p)?;
             } else {
@@ -203,7 +189,6 @@ impl Tree {
                         .ok_or(io::Error::from(io::ErrorKind::InvalidInput))?;
             if is_dir(p) == ObjectType::Tree {
                 let path = hex::encode(file.hash.clone());
-                println!("path {}", path);
                 let tree = Tree::from_hash_file(&hash_key_to_path(&path))?;
                 let mut e = tree.to_entries(p)?;
                 entries.append(&mut e);
@@ -353,7 +338,7 @@ mod tests {
     #[test]
     fn test_tree_to_entries() {
         let tree = Tree::from(&TREE).unwrap();
-        let entries = tree.to_entries().unwrap();
+        let entries = tree.to_entries(".").unwrap();
         assert_eq!(&entries[0].name, ".dockerignore");
         assert_eq!(entries.len() > 7, true);
 
